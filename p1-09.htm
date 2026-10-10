@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"> 
+  <title>Visor de Canción - Con Scroll Automático</title>
+  <style> 
+    body {
+      font-family: Arial, sans-serif;
+      padding: 25px;
+      background-color: #ebebeb; /* Gris ceniza suave */
+      color: #333333;
+    }
+    
+    /* Contenedor fijo arriba para que los botones no se vayan al hacer scroll */
+    .barra-herramientas {
+      position: fixed;
+      top: 10px;
+      left: 25px;
+      right: 25px;
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center; /* ALINEA Y CENTRA TODOS LOS BOTONES HORIZONTALMENTE */ 
+      gap: 15px;
+      align-items: center;
+      z-index: 1000; /* Asegura que siempre esté por encima de la letra */
+    }
+
+    .seccion-herramientas {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    button {
+      padding: 8px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: #fff;
+      color: #333;
+    }
+    
+    button:hover {
+      background-color: #f0f0f0;
+    }
+
+    /* Estilo especial para los botones de Scroll */
+    .btn-scroll {
+      background-color: #0066cc;
+      color: white;
+      border-color: #0052a3;
+    }
+    .btn-scroll:hover {
+      background-color: #0052a3;
+    }
+
+    .selector-velocidad {
+      padding: 6px;
+      font-size: 14px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+    }
+
+    /* Margen arriba para que la letra no se tape con la barra fija */
+    #partitura {
+      margin-top: 90px; 
+      background: white;
+      padding: 35px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      max-width: 900px;
+    }
+
+    /* Ajuste de tamaño grande y alineación vertical */
+    .linea-cancion {
+      margin-bottom: 35px; 
+      display: block;
+    }
+
+    .grupo-musical {
+      display: inline-flex;
+      flex-direction: column;  
+      align-items: center;     
+      margin-right: 12px;      
+      vertical-align: bottom;
+    }
+
+    .acorde {
+      color: #0066cc;          
+      font-weight: bold;
+      font-size: 18px;         
+      height: 20px;            
+      margin-bottom: 6px;      
+    }
+
+    .letra {
+      font-size: 26px;         
+      color: #222222;          
+    }
+    @media print {
+  /* 1. Esconde por completo TODA la barra fija superior de herramientas con sus botones */
+  .barra-herramientas, .contenedor-botones, .contenedor-reproductor, button {
+    display: none !important;
+  }
+  
+  /* 2. Resetea el fondo a blanco y quita los márgenes del ordenador */
+  body {
+    background-color: #ffffff !important; 
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* 3. Elimina el "colchón" invisible de arriba para que la canción empiece en el techo del papel */
+  #partitura {
+    margin-top: 0 !important; 
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    background: transparent !important;
+  }
+
+  /* 4. Asegura que los acordes salgan bien oscuros en el papel */
+  .acorde {
+    color: #000000 !important; 
+  }
+}
+/* Estilo para el botón de imprimir */
+.btn-imprimir {
+  background-color: #b30000; /* Rojo oscuro tipo Adobe PDF */
+  color: white;
+  border-color: #b30000;
+}
+.btn-imprimir:hover {
+  background-color: #800000;
+  border-color: #800000;
+}
+/* Estilo para el botón de PDF */
+.btn-pdf {
+  background-color: #b30000; /* Rojo oscuro tipo Adobe PDF */
+  color: white;
+  border-color: #b30000;
+}
+.btn-pdf:hover {
+  background-color: #800000;
+  border-color: #800000;
+}
+  </style>
+</head>
+<body>
+
+  <!-- Barra de herramientas fija superior -->
+  <div class="barra-herramientas">
+    <!-- Tonos -->
+    <div class="seccion-herramientas">
+      <span style="font-weight:bold;">Tono:</span>
+      <button onclick="cambiarTono(-1)">📉 -1</button>
+      <button onclick="cambiarTono(1)">📈 +1</button>
+    </div>
+
+    <!-- --- NUEVA SECCIÓN DE SCROLL AUTOMÁTICO --- -->
+    <div class="seccion-herramientas" style="border-left: 2px solid #ddd; padding-left: 15px;">
+      <span style="font-weight:bold;">Scroll:</span>
+      <button id="btn-play-scroll" class="btn-scroll" onclick="alternarScroll()">▶️ Iniciar</button>
+      
+      <label for="velocidad">Velocidad:</label>
+      <select id="velocidad" class="selector-velocidad" onchange="actualizarVelocidad()">
+        <option value="1">Muy Lento (Baladas)</option>
+        <option value="2" selected>Normal</option>
+        <option value="3">Rápido</option>
+        <option value="4">Muy Rápido</option>
+      </select>
+    </div>
+
+    <!-- Música externa -->
+    <div class="seccion-herramientas" style="border-left: 2px solid #ddd; padding-left: 15px;">
+      <button class="btn-imprimir" onclick="window.print()">🖨️ Imprimir</button><button style="background-color: #ff0000; color: white; border-color: #ff0000;" onclick="abrirMusica()">📺 Video - Música</button>
+    <!-- Añade este botón en tu contenedor de botones superior -->
+<!-- Recuerda cambiar "partitura_cancion.pdf" por el nombre real de tu archivo PDF -->
+<a href="p1-09.pdf" target="_blank" style="text-decoration: none;">
+  <button class="btn-pdf" type="button">📄 Partitura PDF</button>
+</a>
+    </div>
+  </div>
+  <!-- Estructura de la canción (Añadido mucho texto de prueba para poder ver el scroll en acción) -->
+  <div id="partitura">
+  <pre>
+<p class=MsoNormal align=center style='margin-top:0.0pt;margin-right:0cm;
+  margin-bottom:1.0pt;margin-left:0cm;text-align:center'><b style='mso-bidi-font-weight:
+  normal'><span style='font-size:16.0pt;line-height:115%;color:white;
+  mso-themecolor:background1;background:#71717B;mso-highlight:black'>¿Dónde está la paz?</p><p class=MsoNormal align=center style='margin-top:0.0pt;margin-right:0cm;
+  margin-bottom:0.0pt;margin-left:0cm;text-align:center'><b style='font-weight:
+  normal'><span style='font-size:14.0pt;line-height:115%;color:white;
+  mso-themecolor:background1;background:#71717B;mso-highlight:black'>(José Ramón Solís - 1991 - Gracias Señor)</p><p class=MsoNormal align=left style='margin-top:0.0pt;margin-right:0cm;
+  margin-bottom:0.0pt;margin-left:0cm;text-align:left'><b style='mso-bidi-font-weight:
+  normal'><span style='font-size:16.0pt;line-height:115%;color:black'>
+<!-- canción (Añadido mucho texto de prueba para poder ver el scroll en acción) -->Cejilla 4 
+   <span class="acorde">Do</span>             <span class="acorde">Sol</span>    <span class="acorde">Rem</span>            <span class="acorde">Lam</span> 
+1.-¿Dónde está la paz? ¿Dónde está el perdón?
+<span class="acorde">Fa</span>             <span class="acorde">Sol</span>        <span class="acorde">Do</span>            
+¿Dónde encontraremos tu palabra
+<span class="acorde">Mi</span>              <span class="acorde">Lam</span>            
+Si nos falta amor.
+<span class="acorde">Do</span>            <span class="acorde">Sol</span>    <span class="acorde">Rem</span>            <span class="acorde">Lam</span> 
+¿Dónde buscaremos?. Si no es en nosotros.
+<span class="acorde">Fa</span>         <span class="acorde">Sol</span>         <span class="acorde">Do</span>            
+Dios no está en otro sitio
+<span class="acorde">Fa</span>               <span class="acorde">Mi</span>
+Vive en mi corazón
+
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>            <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>              <span class="acorde">Mi</span>        <span class="acorde">Re</span>             <span class="acorde">La</span>
+Y llevar, como tú, a los hombres la verdad.
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>           <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>             <span class="acorde">Mi</span>        <span class="acorde">Re</span>              <span class="acorde">La</span> <span class="acorde">Mi</span>     
+Y llevar, como tú, a los hombres la verdad.
+
+
+    <span class="acorde">Do</span>          <span class="acorde">Sol</span>    <span class="acorde">Rem</span>            <span class="acorde">Lam</span> 
+2.-Hazte un lugar, deja que te llene.
+<span class="acorde">Fa</span>            <span class="acorde">Sol</span>          <span class="acorde">Do</span>            
+Con su amor puede salvar al mundo,
+<span class="acorde">Mi</span>             <span class="acorde">Lam</span>            
+A esta humanidad.
+<span class="acorde">Do</span>            <span class="acorde">Sol</span>    <span class="acorde">Rem</span>            <span class="acorde">Lam</span> 
+Si buscas la paz y quieres ir conmigo,
+<span class="acorde">Fa</span>            <span class="acorde">Sol</span>          <span class="acorde">Do</span>            
+mano a mano haremos tierra nueva
+<span class="acorde">Fa</span>                <span class="acorde">Mi</span>
+Donde no haya maldad.
+
+
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>            <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>              <span class="acorde">Mi</span>        <span class="acorde">Re</span>             <span class="acorde">La</span>
+Y llevar, como tú, a los hombres la verdad.
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>           <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>             <span class="acorde">Mi</span>        <span class="acorde">Re</span>              <span class="acorde">La</span> <span class="acorde">Mi</span>     
+Y llevar, como tú, a los hombres la verdad.
+
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>            <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>              <span class="acorde">Mi</span>        <span class="acorde">Re</span>             <span class="acorde">La</span>
+Y llevar, como tú, a los hombres la verdad.
+<span class="acorde">La</span>        <span class="acorde">Mi</span>        <span class="acorde">Fa#m</span>           <span class="acorde">Re</span>
+Yo, como tú, quiero ser signo de paz.
+<span class="acorde">La</span>             <span class="acorde">Mi</span>        <span class="acorde">Re</span>              <span class="acorde">La</span> <span class="acorde">Mi</span>     
+Y llevar, como tú, a los hombres la verdad.
+ 
+ <span class="acorde">Do</span>            <span class="acorde">Sol</span>    
+¿Dónde está la paz?
+<span class="acorde">Rem</span>             <span class="acorde">Lam</span> 
+¿Dónde está el perdón?
+
+
+
+
+
+
+</p>
+    </pre> 
+
+
+  </div>
+
+  <script>
+  // --- LÓGICA DEL SCROLL AUTOMÁTICO ---
+  let intervaloScroll = null;
+  let scrollActivo = false;
+  let velocidadPixeles = 1; // Cuántos píxeles se mueve por vez
+  let tiempoFrecuencia = 40; // Cada cuántos milisegundos se mueve (40ms = movimiento ultra fluido)
+
+  function alternarScroll() {
+    const boton = document.getElementById("btn-play-scroll");
+    
+    if (scrollActivo) {
+      // Si estaba activo, lo pausamos
+      clearInterval(intervaloScroll);
+      boton.innerText = "▶️ Iniciar";
+      scrollActivo = false;
+    } else {
+      // Si estaba pausado, lo iniciamos
+      actualizarVelocidad(); // Sincroniza la velocidad del selector antes de arrancar
+      intervaloScroll = setInterval(function() {
+        window.scrollBy(0, velocidadPixeles); // Mueve la ventana hacia abajo
+      }, tiempoFrecuencia);
+      
+      boton.innerText = "⏸️ Pausar";
+      scrollActivo = true;
+    }
+  }
+
+  function actualizarVelocidad() {
+    const valorSeleccionado = parseInt(document.getElementById("velocidad").value);
+    
+    // Ajustamos cuántos píxeles salta en cada paso para cambiar el ritmo de bajada
+    if (valorSeleccionado === 1) velocidadPixeles = 0.5; // Muy lento
+    if (valorSeleccionado === 2) velocidadPixeles = 1;   // Normal
+    if (valorSeleccionado === 3) velocidadPixeles = 2;   // Rápido
+    if (valorSeleccionado === 4) velocidadPixeles = 3;   // Muy rápido
+
+    // Si el scroll está en marcha, reiniciamos el intervalo para aplicar el cambio al instante
+    if (scrollActivo) {
+      clearInterval(intervaloScroll);
+      intervaloScroll = setInterval(function() {
+        window.scrollBy(0, velocidadPixeles);
+      }, tiempoFrecuencia);
+    }
+  }
+
+
+  // --- CONFIGURACIÓN DE TU VIDEO ---
+  const urlCancion = "https://youtu.be/YVY4vSPc1C0?si=PU0QmiEALde8mZ4t";
+  function abrirMusica() {
+    window.open(urlCancion, "reproductorVentana", "width=450,height=350,top=100,left=100,menubar=no,toolbar=no,location=no,status=no");
+  }
+
+  // --- LÓGICA DE TRANSPOSICIÓN MUSICAL ---
+  const escala = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+  const equivalenciasBemoles = {
+    'Dob': 'Si', 'Reb': 'Do#', 'Mib': 'Re#', 'Fab': 'Mi', 'Solb': 'Fa#', 'Lab': 'Sol#', 'Sib': 'La#'
+  };
+
+  let tonoActual = 0;
+  let acordesOriginales = [];
+  
+  window.onload = function() {
+    const elementosAcorde = document.querySelectorAll('.acorde');
+    elementosAcorde.forEach(el => acordesOriginales.push(el.innerText.trim()));
+  };
+
+  function cambiarTono(direccion) {
+    tonoActual += direccion;
+    transponerPartitura(tonoActual);
+  }
+
+  function transponerPartitura(salto) {
+    const elementosAcorde = document.querySelectorAll('.acorde');
+    elementosAcorde.forEach((elemento, indice) => {
+      let acordeOriginal = acordesOriginales[indice];
+      if (!acordeOriginal) return; 
+      
+      let coincidencia = acordeOriginal.match(/^(Do|Re|Mi|Fa|Sol|La|Si)[#b]?/i);
+      if (coincidencia) {
+        let notaBase = coincidencia[0]; 
+        notaBase = notaBase.charAt(0).toUpperCase() + notaBase.slice(1).toLowerCase();
+        let extension = acordeOriginal.substring(notaBase.length);
+
+        if (equivalenciasBemoles[notaBase]) notaBase = equivalenciasBemoles[notaBase];
+
+        let posicionActual = escala.indexOf(notaBase);
+        if (posicionActual !== -1) {
+          let nuevaPosicion = (posicionActual + salto) % 12;
+          if (nuevaPosicion < 0) nuevaPosicion += 12;
+          elemento.innerText = escala[nuevaPosicion] + extension;
+        }
+      }
+    });
+  }
+  // --- ACTIVAR CONTROL POR TECLADO (BARRA ESPACIADORA) ---
+window.addEventListener("keydown", function(evento) {
+  // Detecta si la tecla presionada es la barra espaciadora (código 32 o propiedad "Space")
+  if (evento.key === " " || evento.code === "Space") {
+    
+    // Evita que la página pegue un salto brusco hacia abajo (comportamiento normal del navegador)
+    evento.preventDefault(); 
+    
+    // Llama de forma automática a la función que ya teníamos para iniciar o pausar
+    alternarScroll();
+  }
+});
+  </script>
+</body>
+</html>
